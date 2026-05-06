@@ -97,6 +97,7 @@ Add to `~/.agents/plugins/marketplace.json`:
 |---|---|
 | [`neo4j-gds-skill`](./neo4j-gds-skill) | Run graph algorithms (PageRank, Louvain, node embeddings) on self-managed Neo4j using GDS. |
 | [`neo4j-aura-graph-analytics-skill`](./neo4j-aura-graph-analytics-skill) | Run GDS-compatible graph algorithms on Neo4j Aura via the Graph Analytics API. |
+| [`neo4j-snowflake-graph-analytics-skill`](./neo4j-snowflake-graph-analytics-skill) | Run Neo4j Graph Analytics algorithms (PageRank, Louvain, WCC, Dijkstra, KNN, Node2Vec) directly inside Snowflake without moving data. |
 
 ### Drivers
 
@@ -114,8 +115,9 @@ Add to `~/.agents/plugins/marketplace.json`:
 |---|---|
 | [`neo4j-graphql-skill`](./neo4j-graphql-skill) | Build GraphQL APIs backed by Neo4j using `@neo4j/graphql`. Covers type definitions, `@relationship`, `@cypher`, and filtering. |
 | [`neo4j-spring-data-skill`](./neo4j-spring-data-skill) | Spring Boot + Neo4j with Spring Data Neo4j: `@Node`, `@Relationship`, repositories, projections. |
-| [`neo4j-cli-tools-skill`](./neo4j-cli-tools-skill) | DB admin via `neo4j-admin`, `cypher-shell`, and `aura-cli`. Covers backups, imports, user management, and Aura provisioning. |
+| [`neo4j-cli-tools-skill`](./neo4j-cli-tools-skill) | DB admin via `neo4j-admin`, `cypher-shell`, `aura-cli`, and `neo4j-cli` (preview unified CLI). Covers backups, imports, user management, Aura provisioning, and agent skill install. |
 | [`neo4j-aura-provisioning-skill`](./neo4j-aura-provisioning-skill) | Create and manage Neo4j Aura instances via the Aura CLI and REST API. Covers async polling, credential handling, and tier selection. |
+| [`neo4j-aura-agent-skill`](./neo4j-aura-agent-skill) | Create, configure, and invoke Aura Agents via the v2beta1 REST API. Covers CypherTemplate, SimilaritySearch, and Text2Cypher tools, system prompts, REST/MCP deployment, and OAuth2 auth. |
 
 ## What are Agent Skills?
 
