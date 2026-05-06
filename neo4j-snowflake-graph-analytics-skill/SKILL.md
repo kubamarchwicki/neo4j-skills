@@ -12,6 +12,8 @@ version: 1.0.0
 allowed-tools: Bash WebFetch
 ---
 
+Snowflake Native App — graph algorithm power inside Snowflake. Data stays in Snowflake; project into a graph, run algorithms via SQL `CALL`, results written back to Snowflake tables.
+
 **Docs:** https://neo4j.com/docs/snowflake-graph-analytics/current/
 
 ---

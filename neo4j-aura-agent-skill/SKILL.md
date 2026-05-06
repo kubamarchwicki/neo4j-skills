@@ -26,6 +26,18 @@ allowed-tools: Bash WebFetch
 
 ---
 
+## What are Aura Agents
+
+GraphRAG agents on top of AuraDB — answer natural language questions via three tool types:
+
+- **CypherTemplate** — parameterized queries for predictable lookups
+- **SimilaritySearch** — vector similarity search over a VECTOR index
+- **Text2Cypher** — natural language → Cypher for aggregations and discovery
+
+Expose your graph via natural language to users or apps without application code. Accessible as REST or MCP endpoint; single- and multi-turn. For full Cypher control, low-latency lookups, or direct writes — use `neo4j-cypher-skill` instead.
+
+---
+
 ## Prerequisites
 - Running AuraDB instance with knowledge graph loaded
 - "Generative AI assistance" enabled in Organization settings
