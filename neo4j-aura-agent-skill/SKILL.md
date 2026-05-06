@@ -26,20 +26,6 @@ allowed-tools: Bash WebFetch
 
 ---
 
-## What are Aura Agents
-
-Aura Agents are AI-powered GraphRAG agents that sit on top of an AuraDB instance and answer natural language questions about your graph data. They are managed via the Aura v2beta1 REST API and expose three tool types:
-
-- **CypherTemplate** — pre-defined parameterized queries for fast, predictable lookups (e.g. "find all contracts for company X")
-- **SimilaritySearch** — vector similarity search over a VECTOR index for semantically related content
-- **Text2Cypher** — open-ended natural language → Cypher translation for aggregations and discovery
-
-**Use Aura Agents when** you want to expose your graph to end users or downstream applications via natural language, without writing application code. The Aura Agent reasons and dynamically uses tools to formulate answers. It takes care of response formatting. Agents are accessible as a REST endpoint or MCP server endpoint, and support both single-turn and multi-turn conversations.
-
-**Do not use Aura Agents when** you need full Cypher control, low-latency point lookups, or direct graph writes — run Cypher directly instead.
-
----
-
 ## Prerequisites
 - Running AuraDB instance with knowledge graph loaded
 - "Generative AI assistance" enabled in Organization settings
@@ -55,7 +41,7 @@ Aura Agents are AI-powered GraphRAG agents that sit on top of an AuraDB instance
 
 ## Step 1 — Verify Auth
 
-Scripts call `get_token()` internally — this step is for manual credential verification only.
+Manual credential verification only — scripts call `get_token()` internally.
 
 ```bash
 TOKEN=$(curl -s --request POST 'https://api.neo4j.io/oauth/token' \
@@ -99,7 +85,7 @@ curl -s "https://api.neo4j.io/v1/instances?tenantId=${AURA_PROJECT_ID}" \
   | jq '.data[] | {id, name, status, region, type}'
 ```
 
-Show the output to the user. Ask: **"Which instance should the agent connect to?"** Wait for the user to select one, then write to `.env`:
+Show output to user. Ask: **"Which instance should the agent connect to?"** Then write to `.env`:
 
 ```
 AURA_INSTANCE_ID=<chosen-instance-id>
@@ -113,14 +99,9 @@ If `401`: re-run Step 1. If `404`: verify `AURA_PROJECT_ID`. **Stop and report.*
 
 ## Step 3 — List Existing Agents
 
-Validates API connectivity and shows what is already deployed.
-
 ```bash
-uv run python3 scripts/manage_agent.py list
-```
-
-```powershell
-uv run python scripts\manage_agent.py list
+uv run python3 scripts/manage_agent.py list   # Linux/macOS
+uv run python scripts\manage_agent.py list    # Windows
 ```
 
 Output: agent IDs, names, enabled status, endpoint URLs.
@@ -134,11 +115,8 @@ If `401`: re-run Step 1. If `404`: verify `AURA_ORG_ID`/`AURA_PROJECT_ID`. **Sto
 Requires `NEO4J_URI`, `NEO4J_USERNAME`, `NEO4J_PASSWORD` in `.env`.
 
 ```bash
-uv run python3 scripts/fetch_schema.py
-```
-
-```powershell
-uv run python scripts\fetch_schema.py
+uv run python3 scripts/fetch_schema.py   # Linux/macOS
+uv run python scripts\fetch_schema.py    # Windows
 ```
 
 Saves `schema.json`. Output: node/rel-type counts, node labels + typed properties (with Aura `data_type`), relationship patterns, VECTOR indexes.
@@ -271,7 +249,7 @@ Returns 202 Accepted.
 ## Tool Configuration
 
 ### CypherTemplate
-Pre-defined parameterized queries. Use for repeated, predictable lookups.
+Pre-defined parameterized queries for repeated, predictable lookups.
 
 ```json
 {

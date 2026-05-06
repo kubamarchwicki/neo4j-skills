@@ -1,24 +1,16 @@
 ---
 name: neo4j-snowflake-graph-analytics-skill
-description: >
-  Use this skill when working with Neo4j Graph Analytics for Snowflake.
-  Triggers on any mention of "Neo4j Graph Analytics", "Snowflake graph",
-  "graph algorithms in Snowflake", "GDS Snowflake", or requests to run
-  graph algorithms (PageRank, Louvain, WCC, Dijkstra, KNN, Node2Vec, etc.)
-  against Snowflake tables. Covers installation, privilege setup, the
-  project-compute-write pattern, SQL procedure syntax, and all available
-  algorithms. Do NOT use for standard Neo4j DBMS or Cypher queries against
-  a Neo4j database — use the neo4j-cypher-skill for those.
+description: Run Neo4j Graph Analytics algorithms (PageRank, Louvain, WCC, Dijkstra, KNN,
+  Node2Vec, FastRP, GraphSAGE) directly inside Snowflake without moving data. Use when
+  running graph algorithms against Snowflake tables via the Neo4j Snowflake Native App
+  ("GDS Snowflake", "graph algorithms in Snowflake", "Neo4j Graph Analytics").
+  Covers installation, privilege setup, project-compute-write pattern, and SQL CALL syntax.
+  Does NOT cover Cypher or Neo4j DBMS queries — use neo4j-cypher-skill.
+  Does NOT cover Aura Graph Analytics — use neo4j-aura-graph-analytics-skill.
+  Does NOT cover self-managed GDS — use neo4j-gds-skill.
 version: 1.0.0
 allowed-tools: Bash WebFetch
 ---
-
-# Neo4j Graph Analytics for Snowflake
-
-Neo4j Graph Analytics is a **Snowflake Native Application** that brings graph
-algorithm power directly into Snowflake. Data stays in Snowflake — you project
-it into a graph, run algorithms via SQL `CALL` procedures, and results are
-written back to Snowflake tables.
 
 **Docs:** https://neo4j.com/docs/snowflake-graph-analytics/current/
 
@@ -38,14 +30,13 @@ written back to Snowflake tables.
 
 ## Key Concepts
 
-### The Project → Compute → Write Pattern
+### Project → Compute → Write
 
 Every algorithm run follows three steps:
 
-1. **Project** — specify which Snowflake tables are nodes and which are
-   relationships (edges). The app reads them and builds an in-memory graph.
-2. **Compute** — run the algorithm with its configuration parameters.
-3. **Write** — results are written back to a Snowflake table you specify.
+1. **Project** — specify node/relationship tables; app builds in-memory graph
+2. **Compute** — run algorithm with config parameters
+3. **Write** — results written back to a Snowflake table
 
 ### Required Table Columns
 
@@ -54,8 +45,7 @@ Every algorithm run follows three steps:
 | Node table | `nodeId` (Number) | Any additional columns become node properties |
 | Relationship table | `sourceNodeId` (Number), `targetNodeId` (Number) | Any additional columns become relationship properties |
 
-If your existing tables use different column names, **create a view** on top of
-them that aliases to `nodeId`, `sourceNodeId`, `targetNodeId`.
+If your tables use different column names, create a view aliasing to `nodeId`, `sourceNodeId`, `targetNodeId`.
 
 ### Graph Orientation
 
@@ -145,13 +135,16 @@ CALL Neo4j_Graph_Analytics.graph.wcc('CPU_X64_XS', {
 SELECT * FROM P2P.PUBLIC.USER_COMPONENTS;
 ```
 
-The first argument to `CALL` is the **compute pool size**. Common values:
-- `CPU_X64_XS` — smallest, suitable for development and small graphs
-- `CPU_X64_S`, `CPU_X64_M`, `CPU_X64_L` — progressively larger
-- `HIGHMEM_X64_S`, `HIGHMEM_X64_M`, `HIGHMEM_X64_L` - for when you need larger graphs but dont always require more CPU
-- `GPU_NV_S`, `GPU_NV_XS`, `GPU_GCP_NV_L4_1_24G` - for algorithms that are compute intensive e.g. GraphSAGE and are capable of running on the python runtime
-- Note, not all regions offer all compute pools, especially GPU types
-- See [Estimating Jobs](https://neo4j.com/docs/snowflake-graph-analytics/current/jobs/estimation/) to choose the right size
+First argument is the compute pool size:
+
+| Pool | Use |
+|---|---|
+| `CPU_X64_XS` | Dev / small graphs |
+| `CPU_X64_S/M/L` | Progressively larger |
+| `HIGHMEM_X64_S/M/L` | Large graphs, lower CPU need |
+| `GPU_NV_S/XS`, `GPU_GCP_NV_L4_1_24G` | Compute-intensive (GraphSAGE); GPU not available in all regions |
+
+See [Estimating Jobs](https://neo4j.com/docs/snowflake-graph-analytics/current/jobs/estimation/) to choose size.
 ---
 
 ## Available Algorithms
@@ -224,11 +217,9 @@ The first argument to `CALL` is the **compute pool size**. Common values:
   }
 }
 ```
-- Use defaultTablePrefix if all the views and or tables are in the same schema.
-- Multiple node tables are supported — each maps to a different node label.
-- Multiple relationship tables are supported — each maps to a different relationship type.
-- Node and relationship properties (extra columns) are automatically available
-  to algorithms that use them (e.g. weighted shortest path uses a `weight` column).
+- `defaultTablePrefix` — use when all tables are in the same schema
+- Multiple node/relationship tables supported — each maps to a different label/type
+- Extra columns become node/relationship properties (e.g. `weight` column for weighted paths)
 
 
 ---
@@ -247,12 +238,11 @@ The first argument to `CALL` is the **compute pool size**. Common values:
 }
 ```
 
-- `nodeLabel` must match the node table name (without schema prefix).
-- `outputTable` will be **created or overwritten**.
-- `nodeProperty` (optional) — specify which computed property to write if the
-  algorithm produces multiple properties.
+- `nodeLabel` — node table name without schema prefix
+- `outputTable` — created or overwritten
+- `nodeProperty` (optional) — which computed property to write if algorithm produces multiple
 
-For algorithms that produce **relationship** results (KNN, Node Similarity):
+For relationship results (KNN, Node Similarity):
 
 ```json
 {
@@ -271,9 +261,7 @@ For algorithms that produce **relationship** results (KNN, Node Similarity):
 
 ### Chaining Algorithms
 
-Because results are written to tables, you can feed one algorithm's output into
-the next. Grant `FUTURE TABLES` permissions (as shown in the setup above) so
-the app can read tables it just created.
+Results write to tables — feed one algorithm's output into the next. `FUTURE TABLES` grant (done in setup) lets the app read tables it just created.
 
 ```sql
 -- Step 1: Run FastRP to generate embeddings
@@ -284,7 +272,8 @@ CALL Neo4j_Graph_Analytics.graph.knn('CPU_X64_XS', { ... });
 ```
 
 ### Using Views Instead of Renaming Columns
-Create views for the required column names, with only support data types. Convert categorical data to numerical scores.
+
+Create views with required column names and supported data types. Convert categorical data to numerical scores.
 ```sql
 CREATE VIEW MY_SCHEMA.NODES_VIEW AS
   SELECT user_id AS nodeId, name, age
