@@ -10,6 +10,7 @@ Skill for creating and querying vector indexes in Neo4j for semantic similarity 
 - Batch embedding procedure `ai.text.embedBatch()` for large datasets
 - Vector search: `SEARCH` clause [2026.01+] and `db.index.vector.queryNodes()` procedure fallback
 - Combining vector search with graph traversal (hybrid retrieval)
+- Hybrid search, including vector + fulltext or multiple ranked sources
 - Chunking strategy before ingestion (fixed-size, sentence, semantic)
 - Similarity function guidance: cosine vs euclidean — match your model's training loss
 - Common errors: wrong dimensions, index not ONLINE, provider null returns
@@ -22,6 +23,7 @@ Skill for creating and querying vector indexes in Neo4j for semantic similarity 
 **Not covered:**
 - Full `ai.text.*` plugin reference (completion, chat, structured output) → `neo4j-genai-plugin-skill`
 - GraphRAG pipelines with `neo4j-graphrag` → `neo4j-graphrag-skill`
+- Fulltext-only / keyword-only search → `neo4j-cypher-skill`
 - GDS node embedding algorithms (FastRP, GraphSAGE) → `neo4j-gds-skill`
 
 **Install:**

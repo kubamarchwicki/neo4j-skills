@@ -28,6 +28,7 @@ allowed-tools: Bash WebFetch
 
 - **KG construction from documents** → `neo4j-document-import-skill`
 - **Plain vector/semantic search without graph traversal** → `neo4j-vector-index-skill`
+- **Hybrid search that combines vector with fulltext or other ranked sources** → `neo4j-vector-index-skill`
 - **GDS algorithms (PageRank, Louvain, node embeddings)** → `neo4j-gds-skill`
 - **Agent long-term memory** → `neo4j-agent-memory-skill`
 - **Writing raw Cypher queries** → `neo4j-cypher-skill`
@@ -78,6 +79,8 @@ Using external vector DB?       → WeaviateNeo4jRetriever / PineconeNeo4jRetrie
 | `HybridCypherRetriever` | ✓ | ✓ | ✓ | **Production GraphRAG — default choice** |
 | `Text2CypherRetriever` | — | — | ✓ | LLM generates Cypher; no embedder |
 | `ToolsRetriever` | varies | varies | varies | Multi-retriever LLM routing |
+
+For custom Cypher hybrid search outside the `neo4j-graphrag` retriever APIs, use `neo4j-vector-index-skill`.
 
 ---
 
