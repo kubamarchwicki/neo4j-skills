@@ -100,7 +100,7 @@ RETURN totalCost, [nodeId IN nodeIds | gds.util.asNode(nodeId).name] AS nodes
 
 | Algorithm | Procedure | Tier | Inductive? | Best For |
 |---|---|---|---|---|
-| FastRP | `gds.fastRP` | Community | Yes (with `randomSeed`) | Fast, scalable, production ML |
+| FastRP | `gds.fastRP` | Community | Yes (with `randomSeed`) | Fast production ML; structural vector search |
 | GraphSAGE | `gds.graphSage` | Community | Yes | Feature-rich nodes; generalizes to unseen nodes |
 | Node2Vec | `gds.node2vec` | Community | No (transductive) | Structural similarity; same graph train+predict |
 | HashGNN | `gds.hashgnn` | Community | Yes | GNN-style, limited compute, fast |

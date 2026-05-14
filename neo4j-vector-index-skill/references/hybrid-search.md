@@ -1,10 +1,13 @@
 # Hybrid Search
 
-Hybrid search is useful when one retrieval signal is not enough. Vector search finds semantic matches and paraphrases, but can miss exact names, acronyms, codes, and domain-specific terms. Fulltext search finds exact lexical matches, but can miss related concepts that do not share the same words.
+Hybrid search is useful when one retrieval signal is not enough:
+- Semantic vector search finds paraphrases; misses exact names, acronyms, codes, and domain terms.
+- Lexical fulltext search finds exact words; misses related concepts that do not share words.
+- Structural search uses graph topology, paths, communities, or GDS node embeddings; captures relationships text does not contain.
 
-Combining ranked sources improves recall and can boost results that are supported by more than one signal. The common pattern is vector + fulltext, but the same query shape works for any two or more ranked/scored sources: several vector indexes, title/body fulltext indexes, graph-derived candidate scores, or external retrieval scores.
+Combining ranked sources improves recall and can boost results that are supported by more than one signal. The common pattern is vector + fulltext, but the same query shape works for any two or more ranked/scored sources: several vector indexes, title/body fulltext indexes, GDS-written structural embeddings, graph-derived candidate scores, or external retrieval scores.
 
-Use when the user asks for custom Cypher hybrid search, WRRF/RRF, vector + fulltext, multiple vector indexes, or combining two+ ranked/scored retrieval sources.
+Use when the user asks for custom Cypher hybrid search, WRRF/RRF, vector + fulltext, semantic + lexical + structural search, multiple vector indexes, or combining two+ ranked/scored retrieval sources.
 
 ## When NOT to Use
 - `neo4j-graphrag` package `HybridRetriever` / `HybridCypherRetriever` -> use `neo4j-graphrag-skill`
@@ -21,6 +24,7 @@ Use when the user asks for custom Cypher hybrid search, WRRF/RRF, vector + fullt
 - Use `sourceK > finalK`; combine before final limiting.
 - Use stable unique property for tie breaks. If no stable key exists, add one before production use.
 - Keep `LIMIT $sourceK` inside `SEARCH`; Cypher rejects a `LET` alias there.
+- For structural vector sources, compute/write GDS embeddings first, then create a vector index over that property.
 
 ## Index Setup
 
@@ -122,12 +126,14 @@ RETURN
 
 Examples:
 - second vector index with different embedding model -> `sourceWeights['vector_large']`
+- vector index over GDS FastRP/Node2Vec embeddings -> `sourceWeights['structural_vector']`
 - fulltext index over title fields -> `sourceWeights['title_fulltext']`
 - graph-derived candidate score converted to source rank -> `sourceWeights['graph']`
 
 ## Checklist
 - [ ] Vector and fulltext indexes `ONLINE`
 - [ ] Query embedding generated with same model as stored embeddings
+- [ ] Structural embeddings/scores already produced before query
 - [ ] `sourceK` larger than `finalK`
 - [ ] Stable unique property used for tie-breaks
 - [ ] Raw scores not compared across sources

@@ -5,7 +5,8 @@ description: Neo4j Graph Data Science (GDS) plugin — graph projection, algorit
   (graphdatascience v1.21). Use when running gds.pageRank, gds.louvain, gds.wcc, gds.fastRP,
   gds.knn, gds.betweenness, gds.nodeSimilarity, or any gds.* procedure; projecting named
   in-memory graphs with gds.graph.project or graph.project; chaining algorithms with mutate
-  mode; computing node embeddings for ML; building recommendation systems with FastRP + KNN.
+  mode; computing node embeddings for ML, structural similarity, or vector search; building
+  recommendation systems with FastRP + KNN.
   Also triggers on GraphDataScience, GdsSessions, graph catalog operations, ML pipelines,
   node classification, link prediction.
   Does NOT cover Aura Graph Analytics serverless sessions — use neo4j-aura-graph-analytics-skill.
@@ -19,6 +20,7 @@ allowed-tools: Bash WebFetch
 - Running GDS algorithms on self-managed Neo4j or Aura Pro (embedded plugin)
 - Projecting named in-memory graphs, running centrality/community/similarity/path/embedding algorithms
 - Chaining algorithms via `mutate` mode; building FastRP → KNN pipelines
+- Writing node embeddings for Neo4j vector indexes / structural similarity search
 - Memory estimation before large graph operations
 - GDS Python client (`graphdatascience`) workflows
 
@@ -27,6 +29,7 @@ allowed-tools: Bash WebFetch
 - **Cypher query authoring** → `neo4j-cypher-skill`
 - **Driver/connection setup** → `neo4j-driver-python-skill`
 - **GraphRAG retrieval** → `neo4j-graphrag-skill`
+- **Creating/querying vector indexes over written embeddings** → `neo4j-vector-index-skill`
 
 | Deployment | Use |
 |---|---|
@@ -306,6 +309,8 @@ gds.fastRP.mutate(G, embeddingDimension=256, iterationWeights=[0.0, 1.0, 1.0],
                   randomSeed=42, mutateProperty="embedding")
 gds.fastRP.write(G, embeddingDimension=256, writeProperty="embedding", randomSeed=42)
 ```
+
+For ANN search over structural embeddings, after `write`, create a Neo4j vector index over the written property. Use `neo4j-vector-index-skill`.
 
 ### KNN — K-Nearest Neighbors
 

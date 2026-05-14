@@ -5,11 +5,11 @@ description: Create and manage Neo4j vector indexes, run vector similarity searc
   db.index.vector.queryNodes() procedure (deprecated 2026.04, still works on 2025.x), configure
   HNSW and quantization options, pick similarity function and embedding provider dimensions, and
   batch-update embeddings. Use when tasks involve CREATE VECTOR INDEX, vector.dimensions,
-  cosine/euclidean search, embedding ingestion pipelines, semantic nearest-neighbor lookup, or
-  hybrid search (commonly combining vector and fulltext results).
+  cosine/euclidean search, embedding ingestion pipelines, semantic or structural nearest-neighbor
+  lookup, or hybrid search (vector + fulltext, multiple vector sources, or graph-derived scores).
   Does NOT handle GraphRAG retrieval_query graph traversal — use neo4j-graphrag-skill.
   Does NOT handle fulltext-only/keyword-only search — use neo4j-cypher-skill.
-  Does NOT handle GDS graph embeddings (FastRP, Node2Vec) — use neo4j-gds-skill.
+  Does NOT compute GDS graph embeddings (FastRP, Node2Vec) — use neo4j-gds-skill.
 version: 1.0.0
 compatibility: Neo4j >= 2025.01; SEARCH clause requires 2026.01+
 allowed-tools: Bash WebFetch
@@ -19,6 +19,7 @@ allowed-tools: Bash WebFetch
 - Creating a vector index (`CREATE VECTOR INDEX`) on nodes or relationships
 - Running vector similarity / nearest-neighbor search
 - Storing embeddings on graph nodes during ingestion
+- Indexing/querying embeddings already written by GDS algorithms
 - Choosing similarity function, dimensions, HNSW params, or quantization
 - Using `SEARCH` clause (2026.01+) or `db.index.vector.queryNodes()` (2025.x)
 - Batch-updating embeddings after model change
@@ -28,7 +29,7 @@ allowed-tools: Bash WebFetch
 ## When NOT to Use
 - **GraphRAG pipelines** (VectorCypherRetriever, HybridCypherRetriever, retrieval_query) → `neo4j-graphrag-skill`
 - **Fulltext-only / keyword-only search** (FULLTEXT INDEX, `db.index.fulltext.queryNodes`) → `neo4j-cypher-skill`
-- **GDS graph embeddings** (FastRP, Node2Vec, GraphSAGE) → `neo4j-gds-skill`
+- **Computing GDS graph embeddings** (FastRP, Node2Vec, GraphSAGE) → `neo4j-gds-skill`
 - **Index admin** (list all indexes, drop range/text/lookup indexes) → `neo4j-cypher-skill`
 
 ---
@@ -261,8 +262,8 @@ For full retrieval_query pipelines, HybridCypherRetriever, or `neo4j-graphrag` l
 
 ## Step 6 — Hybrid Search
 
-Use hybrid search when vector-only misses exact terms, codes, acronyms, or names, or when fulltext-only misses paraphrases and semantic matches.
-The common pattern is vector + fulltext, but the same approach works for several vector indexes, graph traversal scores, or any two+ ranked/scored sources.
+Use hybrid search when one signal misses useful candidates: semantic vectors miss exact terms, lexical fulltext misses paraphrases, structural graph signals find topology not present in text.
+The common pattern is vector + fulltext, but the same approach works for several vector indexes, GDS-written embeddings, graph traversal scores, or any two+ ranked/scored sources.
 Load [references/hybrid-search.md](references/hybrid-search.md) and apply its query shape.
 
 Rules:
@@ -477,7 +478,7 @@ If both return `null` → embeddings not set. If cosine returns `1.0` → identi
 
 ## References
 Load on demand:
-- [Hybrid search](references/hybrid-search.md) - combine vector + fulltext or multiple ranked sources with WRRF/RRF
+- [Hybrid search](references/hybrid-search.md) - combine semantic, lexical, structural, or other ranked sources with WRRF/RRF
 - [Vector index docs](https://neo4j.com/docs/cypher-manual/25/indexes/semantic-indexes/vector-indexes/)
 - [SEARCH clause docs](https://neo4j.com/docs/cypher-manual/25/clauses/search/)
 - [Vector functions docs](https://neo4j.com/docs/cypher-manual/25/functions/vector/)
