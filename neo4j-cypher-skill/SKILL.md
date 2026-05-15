@@ -17,6 +17,7 @@ compatibility: Neo4j >= 2025.01 (safe baseline); Cypher 25
 ## When NOT to Use
 - **Driver migration/API changes** → `neo4j-migration-skill`
 - **DB admin** (users, config, backups) → `neo4j-cli-tools-skill`
+- **Hybrid search that combines vector with fulltext or other ranked sources** → `neo4j-vector-index-skill`
 
 GQL conformance note: `LET`, `FINISH`, `FILTER`, and `INSERT` are valid Cypher 25 clauses (introduced via GQL conformance, mostly in Neo4j 2025.06). On older versions, fall back to `WITH` / (omit RETURN) / `WHERE` / `CREATE`. `INSERT` requires `&`-separated multi-labels and does not support dynamic labels/types.
 

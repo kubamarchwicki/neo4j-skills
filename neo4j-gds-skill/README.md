@@ -8,6 +8,7 @@ Agent skill for Neo4j Graph Data Science (GDS) — running graph algorithms on s
 - Execution modes: stream / stats / mutate / write and when to use each
 - Core algorithms: PageRank, Louvain, WCC, Betweenness Centrality, Node Similarity, FastRP, KNN
 - FastRP → KNN recommendation pipeline pattern
+- Writing node embeddings for Neo4j vector indexes / structural similarity search
 - Memory estimation before large projections and algorithm runs
 - GDS Python client (`graphdatascience`) — connection, projection, algorithm calls
 - Graph catalog operations: project, list, drop, subgraph filter
@@ -24,6 +25,7 @@ Agent skill for Neo4j Graph Data Science (GDS) — running graph algorithms on s
 - **Aura Graph Analytics** (BC/VDC/serverless) → `neo4j-aura-graph-analytics-skill`
 - **Cypher query authoring** → `neo4j-cypher-skill`
 - **Driver/connection setup** → `neo4j-driver-python-skill`
+- **Creating/querying vector indexes over written embeddings** → `neo4j-vector-index-skill`
 
 ## Install
 
