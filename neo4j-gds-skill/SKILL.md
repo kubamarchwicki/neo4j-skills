@@ -1,15 +1,12 @@
 ---
 name: neo4j-gds-skill
-description: Neo4j Graph Data Science (GDS) plugin — graph projection, algorithm execution,
-  execution modes (stream/stats/mutate/write), memory estimation, and the GDS Python client
-  (graphdatascience v1.21). Use when running gds.pageRank, gds.louvain, gds.wcc, gds.fastRP,
-  gds.knn, gds.betweenness, gds.nodeSimilarity, or any gds.* procedure; projecting named
-  in-memory graphs with gds.graph.project or graph.project; chaining algorithms with mutate
-  mode; computing node embeddings for ML, structural similarity, or vector search; building
-  recommendation systems with FastRP + KNN.
-  Also triggers on GraphDataScience, GdsSessions, graph catalog operations, ML pipelines,
-  node classification, link prediction.
-  Does NOT cover Aura Graph Analytics serverless sessions — use neo4j-aura-graph-analytics-skill.
+description: Neo4j Graph Data Science (GDS) embedded plugin via Python client or Cypher —
+  covers GraphDataScience, gds.v2 plugin endpoints, gds.version, native projection, Cypher
+  projection, graph catalog operations, stream/stats/mutate/write modes, memory estimation,
+  PageRank, Louvain, WCC, FastRP, KNN, Node Similarity, ML pipelines, and cleanup. Use for
+  Aura Pro, self-managed, local, or offline Neo4j DBMS with the GDS plugin installed. Does
+  NOT cover Aura Graph Analytics GDS Sessions, AuraGraphDataScience, GdsSessions,
+  gds.graph.project.remote, or AuraDB Cypher API projection/session management — use neo4j-aura-graph-analytics-skill.
   Does NOT handle Cypher authoring — use neo4j-cypher-skill.
   Does NOT cover driver setup — use neo4j-driver-python-skill or other driver skill.
 version: 1.0.0
@@ -17,51 +14,62 @@ allowed-tools: Bash WebFetch
 ---
 
 ## When to Use
-- Running GDS algorithms on self-managed Neo4j or Aura Pro (embedded plugin)
+- Running GDS algorithms against embedded GDS plugin through Python client (`graphdatascience`)
+- Running GDS algorithms through `CALL gds.*` Cypher procedures
+- Aura Pro, self-managed Neo4j, local Neo4j, or offline DBMS with GDS plugin installed
 - Projecting named in-memory graphs, running centrality/community/similarity/path/embedding algorithms
 - Chaining algorithms via `mutate` mode; building FastRP → KNN pipelines
 - Writing node embeddings for Neo4j vector indexes / structural similarity search
 - Memory estimation before large graph operations
-- GDS Python client (`graphdatascience`) workflows
 
 ## When NOT to Use
-- **Aura BC / VDC / Free** — GDS plugin unavailable → `neo4j-aura-graph-analytics-skill`
+- **Aura Graph Analytics Sessions / AGA / `GdsSessions` / `AuraGraphDataScience`** → `neo4j-aura-graph-analytics-skill`
+- **AuraDB Cypher API with `{ memory: ... }` or `{ sessionId: ... }`** → `neo4j-aura-graph-analytics-skill`
 - **Cypher query authoring** → `neo4j-cypher-skill`
 - **Driver/connection setup** → `neo4j-driver-python-skill`
 - **GraphRAG retrieval** → `neo4j-graphrag-skill`
 - **Creating/querying vector indexes over written embeddings** → `neo4j-vector-index-skill`
 
-| Deployment | Use |
+| Context | Use |
 |---|---|
-| Aura Free | Upgrade to Pro or use `neo4j-aura-graph-analytics-skill` |
-| Aura Pro | This skill |
-| Aura BC / VDC | `neo4j-aura-graph-analytics-skill` |
-| Self-managed (Community or Enterprise) | This skill (install GDS plugin) |
+| Aura Pro with GDS plugin | This skill |
+| Self-managed/local/offline Neo4j with GDS plugin | This skill |
+| AuraDB serverless analytics session | `neo4j-aura-graph-analytics-skill` |
+| Self-managed Neo4j attached to AGA session | `neo4j-aura-graph-analytics-skill` |
+| Non-Neo4j data source | `neo4j-aura-graph-analytics-skill` |
 
 ---
 
 ## Pre-flight
 
+Use only with embedded GDS plugin.
+
+```python
+from graphdatascience import GraphDataScience
+
+gds = GraphDataScience("neo4j+s://xxx.databases.neo4j.io", auth=("neo4j", "pw"), aura_ds=True)
+gds = GraphDataScience("bolt://localhost:7687", auth=("neo4j", "password"))
+print(gds.server_version())
+```
+
 ```cypher
 RETURN gds.version() AS gds_version
 ```
 
-Fails with `Unknown function 'gds.version'` → GDS not installed or wrong tier. Stop, inform user.
+If `Unknown function 'gds.version'` → GDS plugin unavailable. AuraDB serverless analytics → `neo4j-aura-graph-analytics-skill`. Self-managed/local → install or enable GDS plugin.
 
 ```bash
 pip install graphdatascience              # Python client
 pip install graphdatascience[rust_ext]    # 3–10× faster serialization
 ```
 
-Compatibility: graphdatascience v1.21 — GDS >= 2.6, Python >= 3.10, Neo4j Driver >= 4.4.12
+Compatibility: graphdatascience v1.21 — GDS >= 2.6 and < 2.28 / < 2026.4, Python >= 3.10 and < 3.15, Neo4j Driver >= 4.4.12 and < 7.0.
 
-```python
-from graphdatascience import GraphDataScience
-
-gds = GraphDataScience("bolt://localhost:7687", auth=("neo4j", "password"))
-gds = GraphDataScience("neo4j+s://xxx.databases.neo4j.io", auth=("neo4j", "pw"), aura_ds=True)
-print(gds.server_version())
-```
+V2 rules:
+- Prefer `gds.v2.*` when endpoint exists.
+- Use snake_case endpoints and parameters: `page_rank`, `fast_rp`, `mutate_property`, `write_property`.
+- Use typed result attributes: `result.write_millis`, not `result["writeMillis"]`.
+- Use v1 if v2 endpoint missing/incompatible; label fallback.
 
 ---
 
@@ -79,16 +87,20 @@ YIELD graphName, nodeCount, relationshipCount
 ```
 
 ```python
-G, result = gds.graph.project("myGraph", "Person", "KNOWS")
+G, result = gds.v2.graph.project("myGraph", "Person", "KNOWS")
+print(result.node_count, result.relationship_count)
 
-G, result = gds.graph.project(
+G, result = gds.v2.graph.project(
     "myGraph",
     {"Person": {"properties": ["age", "score"]}, "City": {}},
     {"KNOWS": {"orientation": "UNDIRECTED"}, "LIVES_IN": {"properties": ["since"]}}
 )
 ```
 
-### Cypher Projection (use when native can't express filter/transform)
+Native projection: plugin/simple Python-client workflow only. AGA Sessions → `neo4j-aura-graph-analytics-skill`.
+V1 fallback: `gds.graph.project(...)`.
+
+### Cypher Projection (use for new Cypher workflows, filters, transforms)
 
 ```python
 G, result = gds.graph.cypher.project(
@@ -102,61 +114,34 @@ G, result = gds.graph.cypher.project(
 )
 ```
 
-Native projection over Cypher projection whenever possible — 5–10× faster on large graphs.
+`gds.graph.cypher.project` must end with one `RETURN gds.graph.project(...)` clause. If validation fails: use `gds.run_cypher(...)`, then `gds.graph.get("graphName")`.
+Use v1 `gds.graph.cypher.project(...)` if v2 graph projection cannot express required filter/transform.
 
-### Weighted Projection (Cypher projection syntax)
+AGA Sessions → `neo4j-aura-graph-analytics-skill`; never use plugin Cypher projection.
 
-```cypher
-MATCH (source:User)-[r:RATED]->(target:Movie)
-WITH gds.graph.project(
-  'user-movie-weighted',
-  source, target,
-  { relationshipProperties: r { .rating } },
-  { undirectedRelationshipTypes: ['*'] }
-) AS g
-RETURN g.graphName, g.nodeCount, g.relationshipCount
-```
+### Undirected Projection
 
-### Relationship Aggregation (collapse parallel relationships into a weighted edge)
+Native projection: set `orientation: 'UNDIRECTED'` per relationship type.
+Plugin Cypher projection: set `undirectedRelationshipTypes: ['*']` in fifth `gds.graph.project(...)` config argument.
 
-```cypher
-MATCH (source:Actor)-[r:ACTED_IN]->(:Movie)<-[:ACTED_IN]-(target:Actor)
-WITH source, target, count(r) AS collabCount
-WITH gds.graph.project(
-  'actor-network',
-  source, target,
-  { relationshipProperties: { collabCount: collabCount } },
-  { undirectedRelationshipTypes: ['*'] }
-) AS g
-RETURN g.graphName, g.nodeCount, g.relationshipCount
-```
-
-Use `count(r)` to aggregate multiple parallel relationships into a single weighted edge. Reduces graph size; enables weight-based algorithms.
-
-### Undirected Projection (native syntax)
-
-Pass `orientation: 'UNDIRECTED'` per relationship type — or use `undirectedRelationshipTypes: ['*']` in Cypher projection (second config map).
-
-Leiden **requires** undirected relationships. Community detection and similarity algorithms generally work better on undirected graphs.
+Leiden is defined for directed and undirected graphs. Project undirected relationships when community structure is naturally symmetric.
 
 ### Inspect and Drop
 
 ```python
-G.node_count()            # 12_043
-G.relationship_count()    # 87_211
-G.node_properties("Person")  # lists projected + mutated properties
-G.memory_usage()          # "45 MiB"
-G.exists()
-G.drop()                  # always drop after use — frees JVM heap
+G.node_count()              # 12_043
+G.relationship_count()      # 87_211
+G.node_properties()         # projected + mutated properties by label
+G.relationship_properties() # projected + mutated properties by type
+G.size_in_bytes()
+gds.v2.graph.drop(G)        # frees JVM heap
 
-G = gds.graph.get("myGraph")          # re-attach to existing projection
+G = gds.v2.graph.get("myGraph")       # re-attach to existing projection
 
-with gds.graph.project("tmp", "Person", "KNOWS")[0] as G:
-    results = gds.pageRank.stream(G)
-# dropped automatically
+gds.v2.graph.list()
 ```
 
-### Memory Estimation — always run before large projections and algorithms
+### Memory Estimation — run before large projections and algorithms
 
 ```cypher
 CALL gds.graph.project.estimate(['Person'], 'KNOWS')
@@ -164,13 +149,15 @@ YIELD requiredMemory, bytesMin, bytesMax, nodeCount, relationshipCount
 ```
 
 ```python
-est = gds.graph.project.estimate("Person", "KNOWS")
-print(est["requiredMemory"])    # e.g. "1234 MiB"
+G, project_result = gds.v2.graph.project("myGraph", "Person", "KNOWS")
+print(project_result.node_count)
 
 # Algorithm estimation:
-est = gds.pageRank.estimate(G, dampingFactor=0.85)
-print(est["requiredMemory"])
+est = gds.v2.page_rank.estimate(G, damping_factor=0.85)
+print(est.required_memory)
 ```
+
+Projection estimate fallback: use v1 `gds.graph.project.estimate(...)` if v2 estimate endpoint unavailable.
 
 ---
 
@@ -180,12 +167,12 @@ print(est["requiredMemory"])
 |---|---|---|---|
 | `stream` | None | Row per node/pair | Inspect results; top-N |
 | `stats` | None | Single aggregate row | Summary/convergence check |
-| `mutate` | Adds property to in-memory graph only | Stats row | Chain algorithms |
-| `write` | Persists property to Neo4j DB | Stats row | Final step — make queryable |
+| `mutate` | Adds node property or relationship type/property to in-memory graph only | Stats row | Chain algorithms |
+| `write` | Persists node property or relationship to Neo4j DB | Stats row | Final step — make queryable |
 
 Pattern: `stream` to verify → `mutate` to chain → `write` to persist.
 
-`mutateProperty` must not already exist in the in-memory graph.
+`mutate_property` must not exist in the in-memory graph. Relationship algorithms such as KNN also require `mutate_relationship_type`.
 After `write`, re-project to use written properties in subsequent GDS calls (in-memory graph does not see DB writes).
 
 ---
@@ -229,9 +216,10 @@ YIELD nodePropertiesWritten, ranIterations, didConverge
 ```
 
 ```python
-pr_df = gds.pageRank.stream(G, dampingFactor=0.85)
-gds.pageRank.mutate(G, mutateProperty="pagerank", dampingFactor=0.85)
-gds.pageRank.write(G, writeProperty="pagerank", dampingFactor=0.85)
+pr_df = gds.v2.page_rank.stream(G, damping_factor=0.85)
+mutate_result = gds.v2.page_rank.mutate(G, mutate_property="pagerank", damping_factor=0.85)
+write_result = gds.v2.page_rank.write(G, write_property="pagerank", damping_factor=0.85)
+print(write_result.write_millis)
 ```
 
 ### Louvain (community detection)
@@ -245,13 +233,14 @@ YIELD communityCount, modularity
 ```
 
 ```python
-louvain_df = gds.louvain.stream(G)
-gds.louvain.write(G, writeProperty="community")
+louvain_df = gds.v2.louvain.stream(G)
+write_result = gds.v2.louvain.write(G, write_property="community")
+print(write_result.community_count)
 ```
 
 Leiden is a refinement of Louvain avoiding poorly connected communities — use when community quality > raw speed.
-`modularity` in stats result: range -0.5 to 1.0; values > 0.3 indicate meaningful community structure; > 0.7 = strong.
-Leiden **requires** undirected relationships in the projection.
+`modularity` in stats result: range -0.5 to 1.0. [field] Values > 0.3 often indicate meaningful community structure; > 0.7 is strong.
+Leiden is defined for directed and undirected graphs. Project undirected relationships when community structure is naturally symmetric.
 
 ### WCC — Weakly Connected Components
 
@@ -266,15 +255,16 @@ YIELD nodePropertiesWritten, componentCount
 ```
 
 ```python
-wcc_df = gds.wcc.stream(G)
-gds.wcc.write(G, writeProperty="componentId")
+wcc_df = gds.v2.wcc.stream(G)
+write_result = gds.v2.wcc.write(G, write_property="componentId")
+print(write_result.node_properties_written)
 ```
 
 ### Betweenness Centrality
 
 ```python
-gds.betweenness.stream(G)          # identifies bottleneck/bridge nodes
-gds.betweenness.write(G, writeProperty="betweenness")
+gds.v2.betweenness_centrality.stream(G)          # identifies bottleneck/bridge nodes
+gds.v2.betweenness_centrality.write(G, write_property="betweenness")
 ```
 
 ### Node Similarity
@@ -282,9 +272,9 @@ gds.betweenness.write(G, writeProperty="betweenness")
 Jaccard similarity from common neighbors — no node properties required.
 
 ```python
-gds.nodeSimilarity.stream(G, similarityCutoff=0.1, topK=10)
-gds.nodeSimilarity.write(G, writeRelationshipType="SIMILAR", writeProperty="score",
-                          similarityCutoff=0.1, topK=10)
+gds.v2.node_similarity.stream(G, similarity_cutoff=0.1, top_k=10)
+gds.v2.node_similarity.write(G, write_relationship_type="SIMILAR", write_property="score",
+                             similarity_cutoff=0.1, top_k=10)
 ```
 
 ### FastRP (node embeddings)
@@ -305,9 +295,11 @@ YIELD nodePropertiesWritten
 ```
 
 ```python
-gds.fastRP.mutate(G, embeddingDimension=256, iterationWeights=[0.0, 1.0, 1.0],
-                  randomSeed=42, mutateProperty="embedding")
-gds.fastRP.write(G, embeddingDimension=256, writeProperty="embedding", randomSeed=42)
+gds.v2.fast_rp.mutate(G, embedding_dimension=256, iteration_weights=[0.0, 1.0, 1.0],
+                      random_seed=42, mutate_property="embedding")
+write_result = gds.v2.fast_rp.write(G, embedding_dimension=256, write_property="embedding",
+                                    random_seed=42)
+print(write_result.write_millis)
 ```
 
 For ANN search over structural embeddings, after `write`, create a Neo4j vector index over the written property. Use `neo4j-vector-index-skill`.
@@ -331,9 +323,9 @@ YIELD relationshipsWritten
 ```
 
 ```python
-knn_df = gds.knn.stream(G, nodeProperties=["embedding"], topK=10)
-gds.knn.write(G, nodeProperties=["embedding"], topK=10,
-              writeRelationshipType="SIMILAR", writeProperty="score")
+knn_df = gds.v2.knn.stream(G, node_properties=["embedding"], top_k=10)
+gds.v2.knn.write(G, node_properties=["embedding"], top_k=10,
+                 write_relationship_type="SIMILAR", write_property="score")
 ```
 
 ---
@@ -342,21 +334,21 @@ gds.knn.write(G, nodeProperties=["embedding"], topK=10,
 
 ```python
 # 1. Project
-G, _ = gds.graph.project("myGraph", "Product",
+G, _ = gds.v2.graph.project("myGraph", "Product",
     {"BOUGHT_TOGETHER": {"orientation": "UNDIRECTED"}})
 
 # 2. Estimate memory
-print(gds.fastRP.estimate(G, embeddingDimension=128)["requiredMemory"])
+print(gds.v2.fast_rp.estimate(G, embedding_dimension=128).required_memory)
 
 # 3. Embed
-gds.fastRP.mutate(G, embeddingDimension=128, randomSeed=42, mutateProperty="emb")
+gds.v2.fast_rp.mutate(G, embedding_dimension=128, random_seed=42, mutate_property="emb")
 
 # 4. Similarity
-gds.knn.write(G, nodeProperties=["emb"], topK=10,
-              writeRelationshipType="SIMILAR", writeProperty="score")
+gds.v2.knn.write(G, node_properties=["emb"], top_k=10,
+                 write_relationship_type="SIMILAR", write_property="score")
 
-# 5. Cleanup — always
-G.drop()
+# 5. Cleanup
+gds.v2.graph.drop(G)
 ```
 
 ---
@@ -376,7 +368,7 @@ G.drop()
 | Shortest path (positive weights) | Dijkstra / A* |
 | k alternative paths | Yen's |
 | Fast scalable embeddings | FastRP |
-| Feature-rich nodes | GraphSAGE (Beta) |
+| Feature-rich nodes | GraphSAGE (`gds.beta.graphSage`) |
 
 Full algorithm catalog → [references/algorithms.md](references/algorithms.md)
 
@@ -386,43 +378,27 @@ Full algorithm catalog → [references/algorithms.md](references/algorithms.md)
 
 | Error | Cause | Fix |
 |---|---|---|
-| `Unknown function 'gds.version'` | GDS not installed / wrong tier | Install plugin; on Aura BC/VDC use `neo4j-aura-graph-analytics-skill` |
-| `Insufficient heap memory` / OOM | Graph too large for available JVM heap | Run `gds.graph.project.estimate` first; increase `dbms.memory.heap.max_size` |
-| `Procedure not found: gds.leiden` | Algorithm not licensed / older GDS | Check `CALL gds.list()` for available procedures; upgrade GDS or use Louvain |
-| `Node property 'X' not found` after mutate | Property not projected or wrong graph name | Verify `G.node_properties("Label")` includes the property; check `mutateProperty` spelling |
-| `Graph 'myGraph' already exists` | Leftover projection from failed run | `CALL gds.graph.drop('myGraph')` or `G.drop()` |
-| `mutateProperty already exists` | Re-running algorithm on same projection | Drop and re-project, or use different `mutateProperty` name |
+| `Unknown function 'gds.version'` | Embedded GDS plugin unavailable | AGA → `neo4j-aura-graph-analytics-skill`; self-managed/local → install plugin |
+| `Insufficient heap memory` / OOM | Graph too large for available JVM heap | Run `gds.graph.project.estimate`; increase `dbms.memory.heap.max_size` |
+| `Procedure not found: gds.leiden` | Older or incompatible GDS | Check `CALL gds.list()` for available procedures; upgrade GDS or use Louvain |
+| `Node property 'X' not found` after mutate | Property not projected or wrong graph name | Verify `G.node_properties()` includes the property; check `mutate_property` spelling |
+| `Graph 'myGraph' already exists` | Leftover projection from failed run | `CALL gds.graph.drop('myGraph')` or `gds.v2.graph.drop(G)` |
+| `mutate_property already exists` | Re-running algorithm on same projection | Drop and re-project, or use different `mutate_property` name |
 | `No algorithm results` | Source/target node not in projection | Verify node labels/rel types match projection; check `G.node_count()` |
 
 ---
 
 ## Full Workflow
 
-```python
-# 0. Verify
-print(gds.server_version())
+1. Create `gds` with `GraphDataScience(...)`.
+2. Verify plugin: `gds.server_version()` or `RETURN gds.version()`.
+3. Estimate memory: `gds.graph.project.estimate(...)` and algorithm `.estimate(...)`.
+4. Project named graph with `gds.v2.graph.project(...)`.
+5. Run `gds.v2.*.stream` first; switch to `mutate`; use `write` only when satisfied.
+6. Drop graph with `gds.v2.graph.drop(G)`.
+7. Use v1 only for endpoints missing in v2, such as plugin Cypher projection.
 
-# 1. Estimate
-est = gds.graph.project.estimate("Person", "KNOWS")
-print(est["requiredMemory"])
-
-# 2. Project
-G, _ = gds.graph.project("myGraph", "Person",
-    {"KNOWS": {"orientation": "UNDIRECTED"}})
-print(G.node_count(), G.relationship_count())
-
-# 3. Stream to verify
-df = gds.pageRank.stream(G)
-print(df.sort_values("score", ascending=False).head(10))
-
-# 4. Write when satisfied
-gds.pageRank.write(G, writeProperty="pagerank", dampingFactor=0.85)
-
-# 5. Drop — frees JVM heap
-G.drop()
-```
-
-Built-in test datasets: `gds.graph.load_cora()`, `gds.graph.load_karate_club()`, `gds.graph.load_imdb()`
+Built-in test datasets: `gds.v2.graph.datasets.load_cora()`, `gds.v2.graph.datasets.load_karate_club()`, `gds.v2.graph.datasets.load_imdb()`
 
 ---
 
@@ -436,6 +412,8 @@ Built-in test datasets: `gds.graph.load_cora()`, `gds.graph.load_karate_club()`,
 | `gds.graph.drop(...)` | `write-cypher` |
 | List available procedures | `read-cypher` → `CALL gds.list()` |
 
+Before any `write-cypher`: show exact Cypher, expected nodes/relationships affected, and ask for confirmation. For algorithm `write` mode, estimate or run `stats` first when available.
+
 ---
 
 ## References
@@ -448,11 +426,13 @@ Built-in test datasets: `gds.graph.load_cora()`, `gds.graph.load_karate_club()`,
 ---
 
 ## Checklist
-- [ ] `gds.version()` confirmed — GDS installed and licensed
-- [ ] Memory estimated before large projections and expensive algorithms
-- [ ] Named graph dropped after use (`G.drop()` or context manager)
+- [ ] Embedded GDS plugin confirmed with `gds.version()` or `gds.server_version()`
+- [ ] Graph/algorithm memory estimated before large work
+- [ ] Python examples prefer `gds.v2.*`, snake_case params, typed result attributes
+- [ ] v1 APIs used only as explicit fallback
+- [ ] Projection uses native or plugin Cypher projection; no `gds.graph.project.remote(...)`
+- [ ] Named graph dropped after use (`gds.v2.graph.drop(G)` or v1 fallback)
 - [ ] Execution mode chosen: `stream` (inspect) → `mutate` (chain) → `write` (persist)
-- [ ] `writeProperty`/`mutateProperty` checked for collision with existing properties
+- [ ] `write_property`/`mutate_property` checked for collision with existing properties
 - [ ] `randomSeed` set for reproducible embeddings
 - [ ] WCC run first on graphs that may be disconnected
-- [ ] Native projection used over Cypher projection unless filtering/transformation required

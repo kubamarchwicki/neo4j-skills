@@ -4,10 +4,10 @@
 
 | Type | Procedure | When |
 |---|---|---|
-| Native | `gds.graph.project` | Standard — labels + rel types; 5–10× faster than Cypher |
-| Cypher | `gds.graph.cypher.project` | Filtering, transformation, computed properties, heterogeneous |
+| Cypher | Python: `gds.graph.cypher.project(...)` with `RETURN gds.graph.project` clause inside | Current GDS-doc default; filtering, transformation, computed properties, heterogeneous |
+| Native | Python: `gds.v2.graph.project(...)` | Simple labels + relationship types; shortest Python-client path |
 
-Always prefer native projection. Use Cypher projection only when native can't express the requirement.
+Prefer v2 native projection. Use v1 `gds.graph.cypher.project(...)` only for filtering, transformations, computed properties, or heterogeneous projections that v2 native projection cannot express. Avoid legacy `gds.graph.project.cypher(...)` for new work. For Aura Graph Analytics sessions, use `neo4j-aura-graph-analytics-skill`.
 
 ---
 
@@ -75,7 +75,7 @@ YIELD graphName, nodeCount, relationshipCount, projectMillis
 | `UNDIRECTED` | Adds reverse direction — doubles relationship count |
 | `REVERSE` | Flips direction |
 
-Use `UNDIRECTED` for undirected algorithms (community detection, most similarity/embedding algorithms). Use `NATURAL` for directed algorithms (PageRank, Betweenness).
+Use `UNDIRECTED` for undirected algorithms: community detection, most similarity/embedding algorithms. Use `NATURAL` for directed algorithms: PageRank, Betweenness.
 
 ### Default values
 
@@ -90,7 +90,7 @@ Use `UNDIRECTED` for undirected algorithms (community detection, most similarity
 }
 ```
 
-Null node properties in projection → algorithm errors. Always specify `defaultValue` for optional properties.
+Null node properties in projection → algorithm errors. Set `defaultValue` for optional properties.
 
 ---
 
@@ -100,11 +100,12 @@ Null node properties in projection → algorithm errors. Always specify `default
 from graphdatascience import GraphDataScience
 gds = GraphDataScience("bolt://localhost:7687", auth=("neo4j", "pw"))
 
-# Simple
-G, result = gds.graph.project("myGraph", "Person", "KNOWS")
+# Simple native projection — plugin/simple client only
+G, result = gds.v2.graph.project("myGraph", "Person", "KNOWS")
+print(result.node_count, result.relationship_count)
 
 # Multi-label, multi-rel, properties
-G, result = gds.graph.project(
+G, result = gds.v2.graph.project(
     "myGraph",
     {"Person": {"properties": ["age", "score"]},
      "City":   {"properties": {"population": {"defaultValue": 0}}}},
@@ -112,9 +113,8 @@ G, result = gds.graph.project(
      "LIVES_IN": {"properties": ["since"]}}
 )
 
-# Context manager — auto-drops on exit
-with gds.graph.project("tmp", "Person", "KNOWS")[0] as G:
-    results = gds.pageRank.stream(G)
+# V1 fallback:
+G, result = gds.graph.project("myGraph", "Person", "KNOWS")
 ```
 
 ---
@@ -143,7 +143,10 @@ G, result = gds.graph.cypher.project(
 )
 ```
 
-Use `gds.graph.project($graph_name, source, target, {...})` in the RETURN — the `$graph_name` parameter is injected automatically.
+Use `gds.graph.project($graph_name, source, target, {...})` in `RETURN`; `$graph_name` parameter injected automatically.
+Query must end with exactly one `RETURN gds.graph.project(...)`. Else use `gds.run_cypher(...)`, then `gds.graph.get("filteredGraph")`.
+Never use `gds.graph.project.cypher(...)` for new Cypher projections; legacy deprecated projection procedure.
+AGA Sessions → `neo4j-aura-graph-analytics-skill`.
 
 ---
 
@@ -155,18 +158,16 @@ G.node_count()             # 12_043
 G.relationship_count()     # 87_211
 G.node_labels()            # ["Person", "City"]
 G.relationship_types()     # ["KNOWS", "LIVES_IN"]
-G.node_properties("Person")   # projected + mutated properties
-G.relationship_properties("KNOWS")
-G.memory_usage()           # "45 MiB"
-G.density()                # 0.0032
-G.exists()                 # True
-G.drop()
+G.node_properties()        # projected + mutated properties by label
+G.relationship_properties()
+G.size_in_bytes()
+gds.v2.graph.drop(G)
 
 # Re-attach to existing projection
-G = gds.graph.get("myGraph")
+G = gds.v2.graph.get("myGraph")
 
 # List all projected graphs
-gds.graph.list()
+gds.v2.graph.list()
 ```
 
 ---
@@ -175,24 +176,18 @@ gds.graph.list()
 
 ```python
 # Project estimation
-est = gds.graph.project.estimate("Person", "KNOWS")
-# Multi-label/rel:
-est = gds.graph.project.estimate(
-    {"Person": {"properties": ["score"]}, "City": {}},
-    {"KNOWS": {"orientation": "UNDIRECTED"}}
-)
-print(est["requiredMemory"])    # "1234 MiB"
-print(est["bytesMin"])
-print(est["bytesMax"])
-print(est["nodeCount"])
-print(est["relationshipCount"])
+G, project_result = gds.v2.graph.project("myGraph", "Person", "KNOWS")
+print(project_result.node_count)
 
 # Algorithm estimation (requires projected graph)
-est = gds.pageRank.estimate(G, dampingFactor=0.85)
-est = gds.fastRP.estimate(G, embeddingDimension=256)
+est = gds.v2.page_rank.estimate(G, damping_factor=0.85)
+est = gds.v2.fast_rp.estimate(G, embedding_dimension=256)
+print(est.required_memory)
 ```
 
-Rule: if `requiredMemory` > 80% of available JVM heap (`dbms.memory.heap.max_size`), increase heap before projecting.
+Projection estimate fallback: use v1 `gds.graph.project.estimate(...)` if v2 estimate endpoint unavailable.
+
+If `requiredMemory` exceeds JVM heap (`dbms.memory.heap.max_size`), reduce graph or increase heap. Treat 80% heap as review threshold, not hard guarantee.
 
 ---
 
@@ -210,48 +205,48 @@ CALL gds.graph.drop('myGraph', false) YIELD graphName
 ```
 
 ```python
-gds.graph.list()              # DataFrame of all projected graphs
-gds.graph.exists("myGraph")   # True/False
-gds.graph.drop("myGraph")     # Drop by name
-G.drop()                      # Drop via object
+gds.v2.graph.list()           # list of typed graph metadata objects
+gds.v2.graph.get("myGraph")   # GraphV2
+gds.v2.graph.drop("myGraph")  # Drop by name
+gds.v2.graph.drop(G)          # Drop via object
 ```
 
-Always drop graphs after use. The graph catalog persists until Neo4j restarts — leaked projections consume JVM heap permanently until restart.
+Drop graphs after use. Catalog graphs persist until dropped, source database stops/drops, or DBMS stops.
 
 ---
 
 ## Heterogeneous Graphs
 
-Project multiple node labels and relationship types for algorithms that support them (e.g., `gds.metaPath`):
+Project multiple node labels/relationship types for algorithms that support them (e.g., `gds.metaPath`):
 
 ```python
-G, _ = gds.graph.project(
+G, _ = gds.v2.graph.project(
     "heteroGraph",
     ["Actor", "Movie", "Genre"],
     ["ACTED_IN", "HAS_GENRE"]
 )
 
 # Filter algorithms to specific labels/types
-gds.pageRank.stream(G,
-    nodeLabels=["Actor"],
-    relationshipTypes=["ACTED_IN"]
+gds.v2.page_rank.stream(G,
+    node_labels=["Actor"],
+    relationship_types=["ACTED_IN"]
 )
 ```
 
-Most algorithms accept `nodeLabels` and `relationshipTypes` to scope execution within a heterogeneous projection.
+Most algorithms accept v2 `node_labels` and `relationship_types` to scope execution within heterogeneous projection.
 
 ---
 
 ## Subgraph Projection (filter an existing projection)
 
 ```python
-# Create a subgraph from an existing named graph
-sub_G, result = gds.graph.filter(
-    "subGraph",                    # new graph name
+# Create subgraph from existing named graph
+sub_G, result = gds.v2.graph.filter(
     G,                             # source graph
+    "subGraph",                    # new graph name
     "n.score > 0.5",               # node filter (Cypher predicate)
     "r.weight > 1.0"               # relationship filter
 )
 ```
 
-Project once, filter many times without re-reading the database.
+Project once; filter many times without re-reading database.
