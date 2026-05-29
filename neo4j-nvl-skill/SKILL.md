@@ -12,7 +12,7 @@ description: Neo4j Visualization Library (NVL) — framework-agnostic graph rend
   Does NOT handle driver lifecycle, sessions, or executeQuery setup — use neo4j-driver-javascript-skill.
   Does NOT handle GraphVisualization/Needle default embed — use @neo4j-ndl/react.
 compatibility: "@neo4j-nvl/base 1.1+; React 19 for @neo4j-nvl/react; modern browsers with Canvas2D + WebGL2"
-version: 1.0.0
+version: 1.0.1
 allowed-tools: Bash WebFetch
 ---
 

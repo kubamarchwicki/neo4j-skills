@@ -10,7 +10,7 @@ description: Neo4j .NET Driver v6 — IDriver lifecycle, DI registration (single
   Does NOT cover driver version upgrades — use neo4j-migration-skill.
 compatibility: .NET 8, 9, 10; Neo4j.Driver v6
 allowed-tools: Bash WebFetch
-version: 0.2.0
+version: 1.0.1
 ---
 
 ## When to Use

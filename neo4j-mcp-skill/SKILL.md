@@ -10,6 +10,7 @@ description: >
   Does NOT cover agent memory — use neo4j-agent-memory-skill.
   Does NOT cover Aura instance provisioning — use neo4j-aura-provisioning-skill.
 allowed-tools: Bash, WebFetch
+version: 1.0.1
 ---
 
 # Neo4j MCP Skill
