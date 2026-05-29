@@ -119,6 +119,19 @@ def update_skill_md_files(new_version: str, *, dry_run: bool = False) -> list[st
     return result
 
 
+def check_plugin_json_sync() -> list[str]:
+    """Warn if plugin.json skills list is out of sync with skill directories in the repo."""
+    issues = []
+    data = json.loads(VERSION_FILES[0].read_text())
+    in_manifest = {Path(s).name for s in data.get("skills", [])}
+    on_disk = {p.name for p in ROOT.glob("neo4j-*-skill") if p.is_dir()}
+    for skill in sorted(on_disk - in_manifest):
+        issues.append(f"  WARNING: {skill}/ exists in repo but is missing from plugin.json")
+    for skill in sorted(in_manifest - on_disk):
+        issues.append(f"  WARNING: {skill} is listed in plugin.json but not found on disk")
+    return issues
+
+
 def run_lint() -> bool:
     result = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "lint_skills.py")],
@@ -159,6 +172,14 @@ def main() -> None:
     if dry_run:
         print("[DRY RUN] No files written. Re-run without --dry-run to apply.")
         return
+
+    # --- plugin.json sync check ---
+    sync_issues = check_plugin_json_sync()
+    if sync_issues:
+        print("plugin.json sync warnings:")
+        for line in sync_issues:
+            print(line)
+        print()
 
     # --- lint ---
     print("Running lint_skills.py …")

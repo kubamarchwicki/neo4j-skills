@@ -32,6 +32,7 @@
     "./neo4j-mcp-skill",
     "./neo4j-migration-skill",
     "./neo4j-modeling-skill",
+    "./neo4j-nvl-skill",
     "./neo4j-query-tuning-skill",
     "./neo4j-security-skill",
     "./neo4j-snowflake-graph-analytics-skill",

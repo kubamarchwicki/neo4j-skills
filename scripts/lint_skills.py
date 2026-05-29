@@ -79,6 +79,14 @@ def lint_skill(path: Path) -> list[str]:
                 f"{path}: 'name' ({name!r}) must match parent directory ({expected!r})"
             )
 
+    # --- description block scalar check (raw text, before parsing) ---
+    # description: > causes YAML parsers to read '>' as value → breaks skills.sh indexer
+    if re.search(r'^description:\s*>', text, re.MULTILINE):
+        errors.append(
+            f"{path}: 'description' uses YAML block scalar (description: >) — "
+            "use inline continuation instead (see AGENTS.md)"
+        )
+
     # --- description ---
     desc = fm.get('description', '').strip()
     if not desc:
