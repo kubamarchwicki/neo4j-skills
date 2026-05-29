@@ -29,6 +29,16 @@ gemini extensions install https://github.com/neo4j-contrib/neo4j-skills
 
 Enter your env vars when prompted. Then run `gemini` and use `/extensions list` to verify.
 
+### Antigravity CLI
+
+If you are migrating from Gemini CLI, import existing Gemini extensions automatically:
+
+```bash
+agy plugin import gemini
+```
+
+This auto-converts the `gemini-extension.json` manifest and copies skills into `.agents/skills/`. Then run `agy` and use `/plugins list` to verify.
+
 ### Claude Code
 
 ```
