@@ -28,7 +28,8 @@ GQL conformance note: `LET`, `FINISH`, `FILTER`, and `INSERT` are valid Cypher 2
 
 | ? | Known | Unknown |
 |---|---|---|
-| Schema | Use directly | Run Schema-First Protocol |
+| `<db-name>-schema.json` found in project | Use it directly — skip live inspection | — |
+| Schema (from context or live DB) | Use directly | Run Schema-First Protocol |
 | Neo4j version | Use version features | Default to 2025.01 safe set |
 | Executing (not generating)? | Use EXPLAIN + write gate | State query is unvalidated |
 
@@ -74,9 +75,19 @@ Never fill guessed names — realistic guesses get copied blindly.
 
 ## Schema-First Protocol
 
-Schema in context → use it, skip inspection.
+**Priority order:**
 
-Schema missing → run:
+1. `<db-name>-schema.json` anywhere in project → read directly, state file name + `schema_retrieved_at`, skip live inspection. If significantly outdated and DB reachable, offer re-fetch. Full rules: [references/schema-guardrail.md](references/schema-guardrail.md).
+   - **Existence** — labels/rel-types/properties must be in schema; try synonym resolution before asking
+   - **Property type** — reason about intent first (e.g. string vs INTEGER may be null check); ask only if unclear
+   - **Relationship direction** — wrong direction → correct silently and note
+   - **Synonym mapping** — unambiguous → resolve silently; ambiguous → pick most likely, note; ask if unresolvable
+
+   Scripts: `generate_schema.py` (live DB + APOC), `define_schema.py` (no DB), `import_neo4j_schema.py` (converts `neo4j-graphrag-python`, `graph-schema-introspector`, `graph-schema-json-js-utils`, `mcp-neo4j-data-modeling`).
+
+2. Schema in context → use it, skip inspection.
+
+3. Schema missing → run:
 ```cypher
 CALL db.schema.visualization() YIELD nodes, relationships RETURN nodes, relationships;
 SHOW INDEXES YIELD name, type, labelsOrTypes, properties, state WHERE state = 'ONLINE';
